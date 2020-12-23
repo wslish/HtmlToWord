@@ -99,5 +99,44 @@ namespace HtmlToWord.Service
         {
             this._word?.Dispose();
         }
+
+        public Stream ToWordFile(string html)
+        {
+            var hash = html.GetHashCode().ToString("x8");
+            this._logger.Info("Receive request: {0}", hash);
+
+            var inputFileName = $"{hash}.html";
+            var exportFileName = $"{hash}.doc";
+
+            var inputFilePath = Path.Combine(HtmlFolderPath, inputFileName);
+            var exportFilePath = Path.Combine(WordFolderPath, exportFileName);
+
+            var inputFileInfo = new FileInfo(inputFilePath);
+            var exportFileInfo = new FileInfo(exportFilePath);
+
+            
+            if (exportFileInfo.Exists)
+            {
+                this._logger.Info("Find cache for {0}, just return.", hash);
+                return new MemoryStream(File.ReadAllBytes(exportFilePath));
+            }
+
+            try
+            {
+                var htmlFileContent = string.Format(HtmlWrapper, html);
+                File.WriteAllText(inputFilePath, htmlFileContent);
+
+                var success = this._word.ConvertToWord(inputFileInfo, exportFileInfo, out var message);
+                if(success)
+                return new MemoryStream(File.ReadAllBytes(exportFilePath));
+            }
+            catch (Exception e)
+            {
+                this._logger.Info("Failed to export word of {0}", hash);
+                this._logger.Error("Failed to export word of {0}. Error is {1}", hash, e);
+            }
+            return new MemoryStream();
+        }
+
     }
 }
